@@ -30,7 +30,7 @@ def patch_default_headers():
     RequestHandler.set_default_headers = set_jupyterhub_header
 
 
-def make_app(destport, prefix, command, presentation_path, authtype, request_timeout, ready_check_path, ready_timeout, repo,
+def make_app(destport, dest_prefix, prefix, command, presentation_path, authtype, request_timeout, ready_check_path, ready_timeout, repo,
                 repobranch, repofolder, conda_env_name, debug, logs, forward_user_info, query_user_info, progressive,
                 websocket_max_message_size):
 
@@ -57,7 +57,7 @@ def make_app(destport, prefix, command, presentation_path, authtype, request_tim
         
         command = ['python3', '-m', 'jhsingle_native_proxy.conda_runner', conda_prefix, env_path] + command
 
-    proxy_handler = _make_serverproxy_handler('mainprocess', command, {}, False, destport, ready_check_path, ready_timeout, gitwrapper, {})
+    proxy_handler = _make_serverproxy_handler('mainprocess', command, {}, False, destport, dest_prefix, ready_check_path, ready_timeout, gitwrapper, {})
 
     options = dict(debug=debug,
     logs=logs,
@@ -148,6 +148,7 @@ def get_port_from_env():
 @click.command()
 @click.option('--port', default=get_port_from_env(), help='port for the proxy server to listen on')
 @click.option('--destport', default=0, help='port that the webapp should end up running on; default 0 to be assigned a random free port')
+@click.option('--dest-prefix', default='/', help='Map the base URL of the server to this prefix in the webapp')
 @click.option('--ip', default=None, help='Address to listen on')
 @click.option('--presentation-path', default='', help='presentation_path substitution variable')
 @click.option('--debug/--no-debug', default=False, help='To display debug level logs')
@@ -169,7 +170,7 @@ def get_port_from_env():
 @click.option('--progressive/--no-progressive', default=False, help='Progressively flush responses as they arrive (good for Voila)')
 @click.option('--websocket-max-message-size', default=0, type=click.INT, help='Max size of websocket data (default 0, meaning leave to library defaults)')
 @click.argument('command', nargs=-1, required=True)
-def run(port, destport, ip, presentation_path, debug, logs, authtype, request_timeout, last_activity_interval, force_alive, ready_check_path, 
+def run(port, destport, dest_prefix, ip, presentation_path, debug, logs, authtype, request_timeout, last_activity_interval, force_alive, ready_check_path,
         ready_timeout, repo, repobranch, repofolder, conda_env, allow_root, notebookapp_allow_origin, forward_user_info, query_user_info, progressive, 
         websocket_max_message_size, command):
 
@@ -186,7 +187,7 @@ def run(port, destport, ip, presentation_path, debug, logs, authtype, request_ti
 
     configure_http_client()
 
-    app = make_app(destport, prefix, list(command), presentation_path, authtype, request_timeout, ready_check_path, 
+    app = make_app(destport, dest_prefix, prefix, list(command), presentation_path, authtype, request_timeout, ready_check_path,
         ready_timeout, repo, repobranch, repofolder, conda_env, debug, logs, forward_user_info, query_user_info, 
         progressive, websocket_max_message_size)
 

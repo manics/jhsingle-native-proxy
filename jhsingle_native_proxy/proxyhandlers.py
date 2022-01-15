@@ -135,9 +135,9 @@ class ProxyHandler(HubOAuthenticated, WebSocketHandlerMixin):
     def get_client_uri(self, protocol, host, port, proxied_path, get_args=None):
         context_path = self._get_context_path(port)
         if self.absolute_url:
-            client_path = url_path_join(context_path, proxied_path)
+            client_path = url_path_join(context_path, self.dest_prefix, proxied_path)
         else:
-            client_path = proxied_path
+            client_path = url_path_join(self.dest_prefix, proxied_path)
 
         client_path = quote(client_path, safe=":/?#[]@!$&'()*+,;=-._~")
 
@@ -654,6 +654,7 @@ class SuperviseAndProxyHandler(LocalProxyHandler):
         self.origin_host = None
 
         self.ready_check_path = '/'
+        self.dest_prefix = '/'
         self.ready_timeout = 10
 
         super().__init__(*args, **kwargs)
@@ -883,7 +884,7 @@ class SuperviseAndProxyHandler(LocalProxyHandler):
         self.origin_host = self.request.host
 
 
-def _make_serverproxy_handler(name, command, environment, absolute_url, port, ready_check_path, ready_timeout, gitwrapper, mappath):
+def _make_serverproxy_handler(name, command, environment, absolute_url, port, dest_prefix, ready_check_path, ready_timeout, gitwrapper, mappath):
     """
     Create a SuperviseAndProxyHandler subclass with given parameters
     """
@@ -897,6 +898,7 @@ def _make_serverproxy_handler(name, command, environment, absolute_url, port, re
             self.requested_port = port
             self.mappath = mappath
             self.ready_check_path = ready_check_path
+            self.dest_prefix = dest_prefix
             self.gitwrapper = gitwrapper
             self.ready_timeout = ready_timeout
 
