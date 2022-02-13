@@ -135,9 +135,9 @@ class ProxyHandler(HubOAuthenticated, WebSocketHandlerMixin):
     def get_client_uri(self, protocol, host, port, proxied_path, get_args=None):
         context_path = self._get_context_path(port)
         if self.absolute_url:
-            client_path = url_path_join(context_path, self.dest_prefix, proxied_path)
+            client_path = url_path_join(context_path, proxied_path)
         else:
-            client_path = url_path_join(self.dest_prefix, proxied_path)
+            client_path = proxied_path
 
         client_path = quote(client_path, safe=":/?#[]@!$&'()*+,;=-._~")
 
@@ -646,7 +646,7 @@ class SuperviseAndProxyHandler(LocalProxyHandler):
 
     def __init__(self, *args, **kwargs):
         self.requested_port = 0
-        self.mappath = {}
+        self.mappath = []
 
         self.stderr_str = None
         self.stdout_str = None
@@ -654,7 +654,6 @@ class SuperviseAndProxyHandler(LocalProxyHandler):
         self.origin_host = None
 
         self.ready_check_path = '/'
-        self.dest_prefix = '/'
         self.ready_timeout = 10
 
         super().__init__(*args, **kwargs)
@@ -798,6 +797,16 @@ class SuperviseAndProxyHandler(LocalProxyHandler):
     async def oauth_proxy(self, port, path):
         return await self.core_proxy(port, path)
 
+    def _mappath(self, path):
+        if self.mappath:
+            for pattern, replace in self.mappath:
+                if re.search(pattern, path):
+                    old_path = path
+                    path = re.sub(pattern, replace, path)
+                    self.log.debug(f'Mapped {old_path} -> {path}')
+                    return path
+        return path
+
     async def core_proxy(self, port, path):
 
         if self.origin_host is None:
@@ -806,12 +815,7 @@ class SuperviseAndProxyHandler(LocalProxyHandler):
 
         if not path.startswith('/'):
             path = '/' + path
-
-        if self.mappath:
-            if callable(self.mappath):
-                raise Exception("Not implemented: path = call_with_asked_args(self.mappath, {'path': path})")
-            else:
-                path = self.mappath.get(path, path)
+        path = self._mappath(path)
 
         if self.gitwrapper:
             if not self.gitwrapper.finished:
@@ -883,8 +887,20 @@ class SuperviseAndProxyHandler(LocalProxyHandler):
         self.log.debug('Storing origin host {}'.format(self.request.host))
         self.origin_host = self.request.host
 
+    async def ws_get(self, *args: Any, **kwargs: Any) -> None:
+        path = None
+        if len(args) > 0:
+            path, args = args[0], args[1:]
+        elif 'path' in kwargs:
+            path = kwargs.pop('path')
+        if path is None:
+            await super().ws_get(*args, **kwargs)
+        else:
+            # Note websocket paths may not begin with /
+            await super().ws_get(self._mappath(path), *args, **kwargs)
 
-def _make_serverproxy_handler(name, command, environment, absolute_url, port, dest_prefix, ready_check_path, ready_timeout, gitwrapper, mappath):
+
+def _make_serverproxy_handler(name, command, environment, absolute_url, port, ready_check_path, ready_timeout, gitwrapper, mappath):
     """
     Create a SuperviseAndProxyHandler subclass with given parameters
     """
@@ -898,7 +914,6 @@ def _make_serverproxy_handler(name, command, environment, absolute_url, port, de
             self.requested_port = port
             self.mappath = mappath
             self.ready_check_path = ready_check_path
-            self.dest_prefix = dest_prefix
             self.gitwrapper = gitwrapper
             self.ready_timeout = ready_timeout
 

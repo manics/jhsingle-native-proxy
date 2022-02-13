@@ -115,6 +115,10 @@ to allow any authenticated user access. (i.e. anyone who has an account on the J
 the proxy (default 300). Specify 0 to never update.
 --force-keep-alive or --no-force-keep-alive: the former (default) ensures that the hub is notified of recent activity even if there wasn't any - only works if last-activity-interval is not 0.
 
+--mappath PATTERN REPLACEMENT performs a regex substitution on the path of the request. Back-references are supported.
+This argument can be repeated, processing stops after the first match.
+For example, '--mappath ^/abc/(.*) /def/\1' will map /abc/* to /def/* on the backend, but other paths will be unchanged.
+
 --ready-check-path (default /) to change the URL on the subprocess used to poll with an HTTP request to check for readiness.
 
 --repo - use git to check out a repo before running the sub process
